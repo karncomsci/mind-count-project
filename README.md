@@ -254,7 +254,7 @@ Dockerfiles เป็น multi-stage build และ runtime ใช้ non-root 
 - ต่อ Docker ไม่ได้: เปิด Docker Desktop และตรวจ `docker version`; integration tests ไม่ใช้ mock แทนฐานข้อมูลจริง
 - API ขึ้นไม่สำเร็จ: ตรวจ `docker compose logs api postgres` โดยอย่าเผยแพร่ข้อมูลลับ
 - แก้ dependency แล้ว build ไม่ตรง lockfile: รัน `pnpm install` แล้ว review `pnpm-lock.yaml`
-- ไม่มี Git repository: workspace ต้นทางนี้ยังไม่ได้ `git init`; generator check ทำงานได้ แต่ก่อน push/CI ให้สร้าง repository และ commit source ตาม workflow ของทีม
+- ขั้นตอน Git: เริ่มงานบน task branch จาก `develop` และเปิด PR เข้า `develop`; เมื่อพร้อมปล่อยเวอร์ชันจึงเปิด PR เข้า `main` ดู [Git development workflow](CONTRIBUTING.md#git-development-workflow)
 
 ## แหล่งอ้างอิงเวอร์ชัน
 
