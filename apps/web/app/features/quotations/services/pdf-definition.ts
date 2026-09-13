@@ -3,7 +3,14 @@ import { calculateTotals } from './calculations'
 import { formatDate, formatMoney } from './format'
 import type { QuotationRecord } from '../types'
 
-export function quotationPdfDefinition(records: QuotationRecord[]): TDocumentDefinitions {
+export interface DocumentPdfOptions {
+  title?: string
+  signatureEnabled?: boolean
+}
+export function quotationPdfDefinition(
+  records: QuotationRecord[],
+  options: DocumentPdfOptions = {},
+): TDocumentDefinitions {
   if (!records.length) throw new Error('กรุณาเลือกเอกสาร')
   const content: Content[] = records.map((record, index) => {
     const { draft } = record
@@ -19,7 +26,7 @@ export function quotationPdfDefinition(records: QuotationRecord[]): TDocumentDef
     return {
       pageBreak: index ? 'before' : undefined,
       stack: [
-        { text: 'ใบเสนอราคา', fontSize: 24, color: '#168ebd', bold: true },
+        { text: options.title ?? 'ใบเสนอราคา', fontSize: 24, color: '#168ebd', bold: true },
         { text: record.number, fontSize: 15, margin: [0, 2, 0, 5] },
         {
           text: 'เอกสารตัวอย่าง · Mind Count',
@@ -107,6 +114,23 @@ export function quotationPdfDefinition(records: QuotationRecord[]): TDocumentDef
             },
           ],
         },
+        ...(options.signatureEnabled
+          ? [
+              {
+                columns: [
+                  {
+                    text: '________________________\nผู้วางบิล / ตรายาง',
+                    alignment: 'center' as const,
+                  },
+                  {
+                    text: '________________________\nผู้รับวางบิล / วันที่',
+                    alignment: 'center' as const,
+                  },
+                ],
+                margin: [0, 45, 0, 0] as [number, number, number, number],
+              },
+            ]
+          : []),
       ],
     }
   })
@@ -114,7 +138,10 @@ export function quotationPdfDefinition(records: QuotationRecord[]): TDocumentDef
     pageSize: 'A4',
     pageMargins: [36, 36, 36, 40],
     defaultStyle: { font: 'Sarabun', fontSize: 11, color: '#334155' },
-    info: { title: records.length === 1 ? records[0]!.number : 'ใบเสนอราคา', author: 'Mind Count' },
+    info: {
+      title: records.length === 1 ? records[0]!.number : (options.title ?? 'ใบเสนอราคา'),
+      author: 'Mind Count',
+    },
     content,
     footer: (page, count) => ({
       text: `${page} / ${count}`,

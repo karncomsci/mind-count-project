@@ -1,5 +1,11 @@
 # Mind Count — บันทึก session สำหรับทำงานต่อหลังรีสตาร์ต
 
+## อัปเดต: หน้าใบวางบิล (13 กันยายน 2026)
+
+เพิ่มหน้า `/sales/billing-notes` และ `/sales/billing-notes/new` ตามภาพอ้างอิง พร้อมสร้าง/แก้ไขเอกสาร, โปรเจ็ค/คลังสินค้า, คำนวณยอด, แนบไฟล์, พิมพ์/PDF และข้อความแชร์ ข้อมูลเก็บในเบราว์เซอร์แยกจากใบเสนอราคา ดู [แผนและผลตรวจ](./_bmad-output/implementation-artifacts/billing-notes.md) และ [โครงสร้างใบวางบิล](./docs/architecture/billing-notes-frontend.md)
+
+งานเริ่มบน `feature/billing-notes` จาก `develop`; ผู้ใช้ยืนยันให้ merge เข้า `develop` เมื่อผ่านการตรวจ และคง `main` ไว้สำหรับ release ตรวจ lint/typecheck, unit tests 26 ข้อ, browser tests ร่วมใบเสนอราคา 11 ข้อ, production build และ browser tests บน build จริง 5 ข้อผ่านแล้ว ตรวจสถานะ PR/branch จริงด้วย Git ก่อนเริ่มงานต่อ ส่วนบันทึกเดิมด้านล่างเป็นประวัติก่อนงานนี้
+
 บันทึกวันที่ **13 กันยายน 2026**, เขตเวลา **Asia/Bangkok**
 
 Workspace: `/Users/kittipat/work-shop/mind-count`

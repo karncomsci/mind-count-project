@@ -1,7 +1,10 @@
-import { quotationPdfDefinition } from './pdf-definition'
+import { quotationPdfDefinition, type DocumentPdfOptions } from './pdf-definition'
 import type { QuotationRecord } from '../types'
 
-export async function createQuotationPdf(records: QuotationRecord[]): Promise<Blob> {
+export async function createQuotationPdf(
+  records: QuotationRecord[],
+  options: DocumentPdfOptions = {},
+): Promise<Blob> {
   const { default: pdfMake } = await import('pdfmake/build/pdfmake')
   const base = new URL('/fonts/sarabun/', window.location.origin).href
   pdfMake.addFonts({
@@ -12,7 +15,7 @@ export async function createQuotationPdf(records: QuotationRecord[]): Promise<Bl
       bolditalics: `${base}Sarabun-Bold.ttf`,
     },
   })
-  return pdfMake.createPdf(quotationPdfDefinition(records)).getBlob()
+  return pdfMake.createPdf(quotationPdfDefinition(records, options)).getBlob()
 }
 export function pdfFilename(records: QuotationRecord[]): string {
   return records.length === 1

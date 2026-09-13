@@ -4,7 +4,12 @@ import { sampleProducts } from '../services/fixtures'
 import { formatMoney } from '../services/format'
 import type { LineTotals, QuotationLine } from '../types'
 const items = defineModel<QuotationLine[]>({ required: true })
-defineProps<{ totals: LineTotals[]; errors: Record<string, string> }>()
+defineProps<{
+  totals: LineTotals[]
+  errors: Record<string, string>
+  beforeTax?: boolean
+  showWithholdingAmount?: boolean
+}>()
 defineEmits<{ add: []; remove: [id: string] }>()
 function patch(id: string, value: Partial<QuotationLine>) {
   items.value = items.value.map((item) => (item.id === id ? { ...item, ...value } : item))
@@ -22,7 +27,7 @@ function describe(id: string, description: string) {
   <section aria-label="รายการสินค้า">
     <div class="items-table-scroll">
       <table class="items-table">
-        <caption class="sr-only">สินค้าและบริการในใบเสนอราคา</caption>
+        <caption class="sr-only">สินค้าและบริการในเอกสาร</caption>
         <thead>
           <tr>
             <th class="w-10">ลำดับ</th>
@@ -135,9 +140,15 @@ function describe(id: string, description: string) {
                 <option :value="3">3%</option>
                 <option :value="5">5%</option>
               </select>
+              <p
+                v-if="showWithholdingAmount && item.withholdingRate"
+                class="mt-1 px-2 text-xs text-slate-500"
+              >
+                {{ formatMoney(totals[index]?.withholding ?? 0) }}
+              </p>
             </td>
             <td class="text-right font-medium tabular-nums">
-              {{ formatMoney(totals[index]?.total ?? 0) }}
+              {{ formatMoney((beforeTax ? totals[index]?.net : totals[index]?.total) ?? 0) }}
             </td>
             <td>
               <button

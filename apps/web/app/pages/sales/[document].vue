@@ -5,7 +5,7 @@ const route = useRoute()
 const document = computed(() => salesDocuments.find((item) => item.slug === route.params.document))
 definePageMeta({
   validate: (route) =>
-    ['billing-notes', 'invoices', 'receipts', 'cash-sales', 'credit-notes', 'debit-notes'].includes(
+    ['invoices', 'receipts', 'cash-sales', 'credit-notes', 'debit-notes'].includes(
       String(route.params.document),
     ),
 })

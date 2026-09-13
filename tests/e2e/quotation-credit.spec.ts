@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test'
 
 test('credit modes and editable due dates persist and print correctly', async ({ page }) => {
   await page.goto('/sales/quotations/new')
+  await expect(page.getByRole('button', { name: 'บันทึกเอกสาร', exact: true })).toBeEnabled()
   await page.getByLabel('ชื่อลูกค้า', { exact: false }).fill('ทดสอบเครดิต')
   await page.getByLabel('ชื่อสินค้า รายการที่ 1', { exact: true }).fill('บริการทดสอบ')
   await page.getByLabel(/^วันที่/).fill('2026-09-13')
