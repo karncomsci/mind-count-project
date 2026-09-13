@@ -1,13 +1,22 @@
 <script setup lang="ts">
 import { formatDate, formatMoney } from '../services/format'
 import type { QuotationDraft, QuotationTotals } from '../types'
-defineProps<{ draft: QuotationDraft; number: string; totals: QuotationTotals }>()
+withDefaults(
+  defineProps<{
+    draft: QuotationDraft
+    number: string
+    totals: QuotationTotals
+    title?: string
+    signatureEnabled?: boolean
+  }>(),
+  { title: 'ใบเสนอราคา', signatureEnabled: false },
+)
 </script>
 
 <template>
   <article class="print-document">
     <header>
-      <h1>ใบเสนอราคา</h1>
+      <h1>{{ title }}</h1>
       <p>{{ number }}</p>
       <p>เอกสารตัวอย่าง · Mind Count</p>
     </header>
@@ -81,5 +90,9 @@ defineProps<{ draft: QuotationDraft; number: string; totals: QuotationTotals }>(
       </p>
     </div>
     <p class="mt-8 whitespace-pre-line">{{ draft.note }}</p>
+    <div v-if="signatureEnabled" class="mt-16 grid grid-cols-2 gap-12 text-center">
+      <p class="border-t border-slate-400 pt-3">ผู้วางบิล / ตรายาง</p>
+      <p class="border-t border-slate-400 pt-3">ผู้รับวางบิล / วันที่</p>
+    </div>
   </article>
 </template>

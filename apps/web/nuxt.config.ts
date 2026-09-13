@@ -4,7 +4,7 @@ export default defineNuxtConfig({
   compatibilityDate: '2026-09-13',
   devtools: { enabled: false },
   modules: ['@pinia/nuxt', '@nuxt/eslint'],
-  css: ['~/assets/main.css'],
+  css: ['~/assets/main.css', '~/assets/billing-notes.css'],
   typescript: { strict: true, typeCheck: true },
   vite: { plugins: [tailwindcss()] },
   runtimeConfig: {

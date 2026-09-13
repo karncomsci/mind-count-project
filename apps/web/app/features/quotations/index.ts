@@ -1,2 +1,8 @@
 export { default as QuotationList } from './components/QuotationList.vue'
 export { default as QuotationEditor } from './components/QuotationEditor.vue'
+export { default as QuotationCustomerSection } from './components/QuotationCustomerSection.vue'
+export { default as QuotationDocumentSection } from './components/QuotationDocumentSection.vue'
+export { default as QuotationItemsTable } from './components/QuotationItemsTable.vue'
+export { default as QuotationTotals } from './components/QuotationTotals.vue'
+export { default as QuotationNotesSection } from './components/QuotationNotesSection.vue'
+export { default as QuotationPrintPreview } from './components/QuotationPrintPreview.vue'

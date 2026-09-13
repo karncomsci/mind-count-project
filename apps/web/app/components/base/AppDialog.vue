@@ -3,7 +3,15 @@ defineProps<{ title: string }>()
 const emit = defineEmits<{ close: [] }>()
 const element = ref<HTMLDialogElement | null>(null)
 const titleId = useId()
-onMounted(() => element.value?.showModal())
+let previousFocus: HTMLElement | null = null
+onMounted(() => {
+  previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
+  element.value?.showModal()
+})
+onBeforeUnmount(() => {
+  element.value?.close()
+  if (previousFocus?.isConnected) previousFocus.focus()
+})
 </script>
 <template>
   <dialog
