@@ -42,7 +42,7 @@ jobs:
         run: make build
       - name: Compose smoke
         run: |
-          cp .env.example .env
+          printf 'POSTGRES_PASSWORD=%s\n' "$(openssl rand -hex 24)" > .env
           make dev
           make migrate-up
           curl --fail --max-time 5 http://localhost:8080/health/ready
