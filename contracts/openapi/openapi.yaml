@@ -1,31 +1,71 @@
+---
 openapi: 3.1.0
 info:
   title: Mind Count API
   version: 0.1.0
-  description: Phase 0 infrastructure contract. Authentication is added in Phase 1.
+  description: Development single-workspace API with PostgreSQL billing persistence.
+    Authentication is not yet implemented.
 servers:
-  - url: http://localhost:8080
+- url: http://localhost:8080
 paths:
-  /health/live:
+  "/health/live":
     get:
       operationId: getLiveness
       summary: Check whether the HTTP process is alive
       responses:
         '200':
-          $ref: '#/components/responses/HealthResult'
+          "$ref": "#/components/responses/HealthResult"
         default:
-          $ref: '#/components/responses/Failure'
-  /health/ready:
+          "$ref": "#/components/responses/Failure"
+  "/health/ready":
     get:
       operationId: getReadiness
       summary: Check whether PostgreSQL is reachable within the readiness deadline
       responses:
         '200':
-          $ref: '#/components/responses/HealthResult'
+          "$ref": "#/components/responses/HealthResult"
         '503':
-          $ref: '#/components/responses/Failure'
+          "$ref": "#/components/responses/Failure"
         default:
-          $ref: '#/components/responses/Failure'
+          "$ref": "#/components/responses/Failure"
+  "/api/v1/billing":
+    get:
+      operationId: getBilling
+      summary: Read billing documents, projects and warehouses
+      responses:
+        '200':
+          description: Success
+          headers:
+            X-Request-Id:
+              "$ref": "#/components/headers/RequestId"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/BillingWorkspace"
+        default:
+          "$ref": "#/components/responses/Failure"
+    post:
+      operationId: mutateBilling
+      summary: Apply one atomic billing command. Editing requires the version last
+        read; stale writes return 409. Import preserves local IDs and is idempotent.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/BillingCommand"
+      responses:
+        '200':
+          description: Success
+          headers:
+            X-Request-Id:
+              "$ref": "#/components/headers/RequestId"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/BillingResult"
+        default:
+          "$ref": "#/components/responses/Failure"
 components:
   headers:
     RequestId:
@@ -39,40 +79,47 @@ components:
       description: Healthy
       headers:
         X-Request-Id:
-          $ref: '#/components/headers/RequestId'
+          "$ref": "#/components/headers/RequestId"
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Health'
+            "$ref": "#/components/schemas/Health"
     Failure:
       description: Request failed
       headers:
         X-Request-Id:
-          $ref: '#/components/headers/RequestId'
+          "$ref": "#/components/headers/RequestId"
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/ErrorResponse'
+            "$ref": "#/components/schemas/ErrorResponse"
   schemas:
     Health:
       type: object
       additionalProperties: false
-      required: [status]
+      required:
+      - status
       properties:
         status:
           type: string
-          enum: [ok]
+          enum:
+          - ok
     ErrorResponse:
       type: object
       additionalProperties: false
-      required: [error]
+      required:
+      - error
       properties:
         error:
-          $ref: '#/components/schemas/Error'
+          "$ref": "#/components/schemas/Error"
     Error:
       type: object
       additionalProperties: false
-      required: [code, message, details, requestId]
+      required:
+      - code
+      - message
+      - details
+      - requestId
       properties:
         code:
           type: string
@@ -84,3 +131,393 @@ components:
         requestId:
           type: string
           format: uuid
+    BillingCustomer:
+      type: object
+      additionalProperties: false
+      required:
+      - name
+      - address
+      - postalCode
+      - taxId
+      - branch
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        address:
+          type: string
+          minLength: 0
+          maxLength: 1000
+        postalCode:
+          type: string
+          minLength: 0
+          maxLength: 5
+        taxId:
+          type: string
+          minLength: 0
+          maxLength: 13
+        branch:
+          type: string
+          minLength: 0
+          maxLength: 100
+    BillingLine:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - description
+      - quantity
+      - unit
+      - unitPrice
+      - discountPercent
+      - vatRate
+      - withholdingRate
+      properties:
+        id:
+          type: string
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        quantity:
+          type: number
+          format: double
+          minimum: 1.0e-06
+          maximum: 100000
+        unit:
+          type: string
+          minLength: 1
+          maxLength: 30
+        unitPrice:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1000000
+        discountPercent:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 100
+        vatRate:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 7
+        withholdingRate:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 5
+    BillingAttachment:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - name
+      - type
+      - size
+      - dataUrl
+      properties:
+        id:
+          type: string
+          minLength: 1
+          maxLength: 100
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        type:
+          type: string
+          enum:
+          - image/png
+          - image/jpeg
+          - application/pdf
+        size:
+          type: integer
+          minimum: 1
+          maximum: 1048576
+        dataUrl:
+          type: string
+          minLength: 1
+          maxLength: 1400000
+    BillingDraft:
+      type: object
+      additionalProperties: false
+      required:
+      - customer
+      - date
+      - creditDays
+      - creditMode
+      - dueDate
+      - salesperson
+      - project
+      - reference
+      - description
+      - warehouse
+      - priceMode
+      - items
+      - documentDiscount
+      - note
+      - internalNote
+      - signatureEnabled
+      - attachments
+      properties:
+        customer:
+          "$ref": "#/components/schemas/BillingCustomer"
+        date:
+          type: string
+          minLength: 10
+          maxLength: 10
+        creditDays:
+          type: integer
+          minimum: 0
+          maximum: 365
+        creditMode:
+          type: string
+          enum:
+          - days
+          - cash
+          - undated
+        dueDate:
+          type: string
+          minLength: 10
+          maxLength: 10
+        salesperson:
+          type: string
+          minLength: 0
+          maxLength: 200
+        project:
+          type: string
+          minLength: 0
+          maxLength: 200
+        reference:
+          type: string
+          minLength: 0
+          maxLength: 100
+        description:
+          type: string
+          minLength: 0
+          maxLength: 1000
+        warehouse:
+          type: string
+          minLength: 0
+          maxLength: 100
+        priceMode:
+          type: string
+          enum:
+          - exclusive
+          - inclusive
+        items:
+          type: array
+          maxItems: 100
+          items:
+            "$ref": "#/components/schemas/BillingLine"
+        documentDiscount:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 100000000
+        note:
+          type: string
+          minLength: 0
+          maxLength: 2000
+        internalNote:
+          type: string
+          minLength: 0
+          maxLength: 2000
+        signatureEnabled:
+          type: boolean
+        attachments:
+          type: array
+          maxItems: 3
+          items:
+            "$ref": "#/components/schemas/BillingAttachment"
+    BillingProject:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - name
+      - customer
+      properties:
+        id:
+          type: string
+          minLength: 1
+          maxLength: 100
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        customer:
+          type: string
+          minLength: 0
+          maxLength: 200
+    BillingWarehouse:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - name
+      - code
+      - address
+      - postalCode
+      - purpose
+      - contact
+      - email
+      - phone
+      properties:
+        id:
+          type: string
+          minLength: 1
+          maxLength: 100
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        code:
+          type: string
+          minLength: 0
+          maxLength: 30
+        address:
+          type: string
+          minLength: 0
+          maxLength: 1000
+        postalCode:
+          type: string
+          minLength: 0
+          maxLength: 5
+        purpose:
+          type: string
+          enum:
+          - ซื้อและขาย
+          - ซื้อสินค้า
+          - ขายสินค้า
+        contact:
+          type: string
+          minLength: 0
+          maxLength: 200
+        email:
+          type: string
+          minLength: 0
+          maxLength: 254
+        phone:
+          type: string
+          minLength: 0
+          maxLength: 30
+    BillingStatus:
+      type: string
+      enum:
+      - draft
+      - waiting
+      - billed
+      - cancelled
+    BillingRecord:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - number
+      - updatedAt
+      - version
+      - status
+      - kind
+      - deletedAt
+      - draft
+      properties:
+        id:
+          type: string
+          minLength: 1
+          maxLength: 100
+        number:
+          type: string
+          minLength: 1
+          maxLength: 40
+        updatedAt:
+          type: string
+          minLength: 1
+          maxLength: 40
+        version:
+          type: integer
+          format: int64
+          minimum: 0
+        status:
+          "$ref": "#/components/schemas/BillingStatus"
+        kind:
+          type: string
+          enum:
+          - billing
+          - consolidated
+        deletedAt:
+          type:
+          - string
+          - 'null'
+        draft:
+          "$ref": "#/components/schemas/BillingDraft"
+    BillingWorkspace:
+      type: object
+      additionalProperties: false
+      required:
+      - records
+      - projects
+      - warehouses
+      properties:
+        records:
+          type: array
+          items:
+            "$ref": "#/components/schemas/BillingRecord"
+        projects:
+          type: array
+          items:
+            "$ref": "#/components/schemas/BillingProject"
+        warehouses:
+          type: array
+          items:
+            "$ref": "#/components/schemas/BillingWarehouse"
+    BillingCommand:
+      type: object
+      additionalProperties: false
+      required:
+      - operation
+      properties:
+        operation:
+          type: string
+          enum:
+          - save
+          - status
+          - delete
+          - restore
+          - project
+          - warehouse
+          - import
+        id:
+          type: string
+          minLength: 0
+          maxLength: 100
+        version:
+          type: integer
+          format: int64
+          minimum: 0
+        draft:
+          "$ref": "#/components/schemas/BillingDraft"
+        status:
+          "$ref": "#/components/schemas/BillingStatus"
+        project:
+          "$ref": "#/components/schemas/BillingProject"
+        warehouse:
+          "$ref": "#/components/schemas/BillingWarehouse"
+        record:
+          "$ref": "#/components/schemas/BillingRecord"
+    BillingResult:
+      type: object
+      additionalProperties: false
+      required: []
+      properties:
+        record:
+          "$ref": "#/components/schemas/BillingRecord"
+        project:
+          "$ref": "#/components/schemas/BillingProject"
+        warehouse:
+          "$ref": "#/components/schemas/BillingWarehouse"

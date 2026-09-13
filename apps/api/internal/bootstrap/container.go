@@ -8,6 +8,9 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"mind-count/apps/api/internal/modules/billing"
+	billinghttp "mind-count/apps/api/internal/modules/billing/http"
+	billingpostgres "mind-count/apps/api/internal/modules/billing/postgres"
 	"mind-count/apps/api/internal/platform/config"
 	"mind-count/apps/api/internal/platform/database"
 )
@@ -25,7 +28,9 @@ func NewContainer(ctx context.Context, cfg config.Config, log *slog.Logger) (*Co
 	if err != nil {
 		return nil, err
 	}
-	return &Container{Pool: pool, Transactions: database.NewTxManager(pool, cfg.DBOperationTimeout), Handler: NewRouter(cfg, log, pool)}, nil
+	tx := database.NewTxManager(pool, cfg.DBOperationTimeout)
+	service := billing.NewService(billingpostgres.NewRepository(tx, cfg.DBOperationTimeout), tx)
+	return &Container{Pool: pool, Transactions: tx, Handler: NewRouter(cfg, log, pool, billinghttp.NewHandler(service))}, nil
 }
 
 // Close releases the database pool after HTTP requests have drained.

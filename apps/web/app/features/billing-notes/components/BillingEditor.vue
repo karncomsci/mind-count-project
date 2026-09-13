@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { onBeforeRouteLeave } from 'vue-router'
+import DocumentLeaveDialog from '~/components/base/DocumentLeaveDialog.vue'
+import { useDocumentLeave } from '~/composables/useDocumentLeave'
 import AppIcon from '~/components/base/AppIcon.vue'
 import AppDropdown from '~/components/base/AppDropdown.vue'
 import AppDialog from '~/components/base/AppDialog.vue'
@@ -37,6 +38,11 @@ const {
 const errorSummary = ref<HTMLElement | null>(null)
 const busy = ref(false)
 const uploading = ref(false)
+const { leaveOpen, leaveBusy, cancelLeave, discardAndLeave, saveAndLeave } = useDocumentLeave(
+  dirty,
+  async () => !busy.value && !uploading.value && !!(await save()),
+  focusErrors,
+)
 const modal = ref<'share' | 'info' | null>(null)
 const message = ref('')
 const shareText = computed(
@@ -57,7 +63,7 @@ async function submit() {
   if (busy.value || uploading.value || store.warning) return
   busy.value = true
   try {
-    const result = save()
+    const result = await save()
     if (result) await navigateTo({ path: '/sales/billing-notes', query: { saved: result.number } })
     else await focusErrors()
   } finally {
@@ -110,17 +116,6 @@ async function copySummary() {
     message.value = 'คัดลอกอัตโนมัติไม่ได้ กรุณาเลือกข้อความแล้วคัดลอก'
   }
 }
-function beforeUnload(event: BeforeUnloadEvent) {
-  if (dirty.value) {
-    event.preventDefault()
-    event.returnValue = ''
-  }
-}
-onMounted(() => window.addEventListener('beforeunload', beforeUnload))
-onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
-onBeforeRouteLeave(
-  () => !dirty.value || window.confirm('มีข้อมูลที่ยังไม่ได้บันทึก ต้องการออกจากหน้านี้หรือไม่?'),
-)
 </script>
 
 <template>
@@ -132,6 +127,13 @@ onBeforeRouteLeave(
     </NuxtLink>
   </section>
   <template v-else>
+    <DocumentLeaveDialog
+      v-if="leaveOpen"
+      :busy="leaveBusy || busy || uploading"
+      @cancel="cancelLeave"
+      @discard="discardAndLeave"
+      @save="saveAndLeave"
+    />
     <form
       class="quotation-editor billing-editor screen-document"
       :inert="!ready"
@@ -154,7 +156,13 @@ onBeforeRouteLeave(
           </div>
         </div>
         <div class="editor-actions">
-          <NuxtLink to="/sales/billing-notes" class="button button-white">ปิดหน้าต่าง</NuxtLink>
+          <NuxtLink
+            to="/sales/billing-notes"
+            class="button button-white"
+            @click="busy && $event.preventDefault()"
+          >
+            ปิดหน้าต่าง
+          </NuxtLink>
           <button
             type="submit"
             class="button button-green"
@@ -164,11 +172,11 @@ onBeforeRouteLeave(
           </button>
         </div>
       </header>
-      <div class="document-card">
+      <div class="document-card" :inert="busy || leaveBusy">
         <div class="billing-topbar">
           <span class="demo-badge">
             <AppIcon name="info" class="h-4 w-4" />
-            เอกสารตัวอย่าง · บันทึกในเบราว์เซอร์นี้
+            {{ recordId ? 'ข้อมูลบันทึกในฐานข้อมูล' : 'เลขที่เอกสารจะยืนยันเมื่อบันทึก' }}
           </span>
           <div class="billing-toolbar">
             <button type="button" :disabled="busy" @click="output('share')">

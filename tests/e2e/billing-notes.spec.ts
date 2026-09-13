@@ -1,5 +1,8 @@
+import { mockBilling } from './support/billing-api'
 import { expect, test } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
+
+test.beforeEach(async ({ page }) => { await mockBilling(page) })
 
 test('billing editor creates catalogs, calculates, saves, and reloads independently', async ({
   page,
@@ -160,18 +163,13 @@ test('mobile dialogs support keyboard cancellation and do not overflow the viewp
   })
 })
 
-test('unreadable storage and missing records are explicit and never overwritten', async ({
-  page,
-}) => {
-  await page.addInitScript(() =>
-    localStorage.setItem('mind-count:billing-notes:demo:v1', '{broken'),
-  )
+test('unavailable backend blocks writes and preserves browser data', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('mind-count:billing-notes:demo:v1', '{broken'))
+  await page.route('**/api/v1/billing', route => route.fulfill({ status: 503, json: { error: { code: 'unavailable', message: 'เชื่อมต่อบริการใบวางบิลไม่ได้', details: {}, requestId: 'fixture' } } }))
   await page.goto('/sales/billing-notes/new')
-  await expect(page.getByRole('alert')).toContainText('อ่านข้อมูลใบวางบิลไม่ได้')
+  await expect(page.getByRole('alert')).toContainText('เชื่อมต่อบริการใบวางบิลไม่ได้')
   await expect(page.getByRole('button', { name: 'บันทึกเอกสาร', exact: true })).toBeDisabled()
-  expect(await page.evaluate(() => localStorage.getItem('mind-count:billing-notes:demo:v1'))).toBe(
-    '{broken',
-  )
+  expect(await page.evaluate(() => localStorage.getItem('mind-count:billing-notes:demo:v1'))).toBe('{broken')
 })
 
 test('unknown billing IDs show a useful not-found state', async ({ page }) => {

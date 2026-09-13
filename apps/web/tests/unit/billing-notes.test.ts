@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
+import { readBilling, mutateBilling } from '../../app/features/billing-notes/services/api'
 import { useBillingNotesStore } from '../../app/features/billing-notes/stores/billing-notes'
 import { documentPdfDefinition } from '../../app/features/quotations/documents'
 import {
@@ -16,6 +17,10 @@ import {
   BILLING_STORAGE_KEY,
   initialBillingState,
 } from '../../app/features/billing-notes/services/storage'
+vi.mock('../../app/features/billing-notes/services/api', () => ({
+  readBilling: vi.fn(),
+  mutateBilling: vi.fn(),
+}))
 
 function validDraft() {
   const draft = createBillingDraft('2026-09-13')
@@ -82,6 +87,10 @@ describe('billing notes', () => {
     const state = initialBillingState()
     state.records.push({
       id: 'billing-1',
+      status: 'draft',
+      version: 0,
+      kind: 'billing',
+      deletedAt: null,
       number: 'BL202609130001',
       updatedAt: '2026-09-13T00:00:00.000Z',
       draft: validDraft(),
@@ -144,42 +153,54 @@ describe('billing notes', () => {
     expect(quotation).toContain('ใบเสนอราคา')
     expect(quotation).not.toContain('ผู้รับวางบิล / วันที่')
   })
-  it('preserves state on failed saves, prevents duplicate catalogs, and rereads the latest document sequence', () => {
-    const values = new Map<string, string>()
-    const storage = {
-      getItem: (key: string) => values.get(key) ?? null,
-      setItem: vi.fn((key: string, value: string) => {
-        values.set(key, value)
-      }),
-    }
-    vi.stubGlobal('window', { localStorage: storage })
+  it('preserves state on failed API writes and sends the last-read version', async () => {
+    vi.stubGlobal('window', { localStorage: { getItem: () => null } })
+    vi.mocked(readBilling).mockResolvedValue(initialBillingState())
     setActivePinia(createPinia())
     const store = useBillingNotesStore()
-    store.hydrate()
-    const first = store.save(validDraft())
-    expect(first.number).toBe('BL202609130001')
-    storage.setItem.mockImplementationOnce(() => {
-      throw new Error('QuotaExceededError')
-    })
-    expect(() => store.save(validDraft())).toThrow('QuotaExceededError')
-    expect(store.state.records).toHaveLength(1)
-    const latest = loadBillingState(storage)
-    latest.records.push({ ...first, id: 'other-tab', number: 'BL202609130002' })
-    saveBillingState(storage, latest)
-    expect(store.save(validDraft()).number).toBe('BL202609130003')
-    expect(store.state.records).toHaveLength(3)
-    expect(() =>
-      store.addProject({ id: 'duplicate', name: ' คอมพิวเตอร์ ', customer: '' }),
-    ).toThrow('มีชื่อโปรเจ็คนี้แล้ว')
-    const warehouse = {
-      ...initialBillingState().warehouses[0]!,
-      id: 'new',
-      name: 'คลังใหม่',
-      code: 'BKK',
+    await store.hydrate()
+    const record = {
+      id: 'one',
+      number: 'BL202609130001',
+      version: 1,
+      status: 'draft' as const,
+      kind: 'billing' as const,
+      deletedAt: null,
+      updatedAt: '2026-09-13T00:00:00Z',
+      draft: validDraft(),
     }
-    store.addWarehouse(warehouse)
-    expect(() =>
-      store.addWarehouse({ ...warehouse, id: 'new-2', name: 'คลังอื่น', code: 'bkk' }),
-    ).toThrow('ชื่อหรือรหัสคลังสินค้านี้มีอยู่แล้ว')
+    vi.mocked(mutateBilling).mockResolvedValueOnce({ record })
+    await store.save(validDraft())
+    vi.mocked(mutateBilling).mockRejectedValueOnce(new Error('version conflict'))
+    await expect(store.save(validDraft(), 'one')).rejects.toThrow('version conflict')
+    expect(store.state.records).toEqual([record])
+    expect(mutateBilling).toHaveBeenLastCalledWith({
+      operation: 'save',
+      id: 'one',
+      version: 1,
+      draft: expect.objectContaining({ customer: record.draft.customer }),
+    })
+    vi.mocked(mutateBilling).mockRejectedValueOnce(new Error('duplicate'))
+    await expect(store.addProject({ id: 'p', name: 'new', customer: '' })).rejects.toThrow(
+      'duplicate',
+    )
+    expect(store.state.projects).toEqual(initialBillingState().projects)
+  })
+  it('keeps the original browser payload when import fails partway through', async () => {
+    const original = JSON.stringify(initialBillingState())
+    const storage = { getItem: () => original, setItem: vi.fn(), removeItem: vi.fn() }
+    vi.stubGlobal('window', { localStorage: storage })
+    vi.mocked(readBilling).mockResolvedValue(initialBillingState())
+    setActivePinia(createPinia())
+    const store = useBillingNotesStore()
+    await store.hydrate()
+    vi.mocked(mutateBilling)
+      .mockResolvedValueOnce({ project: initialBillingState().projects[0]! })
+      .mockRejectedValueOnce(new Error('offline'))
+    await store.importLegacy()
+    expect(store.legacyWarning).toBe('offline')
+    expect(store.legacy).not.toBeNull()
+    expect(storage.removeItem).not.toHaveBeenCalled()
+    expect(storage.setItem).not.toHaveBeenCalled()
   })
 })

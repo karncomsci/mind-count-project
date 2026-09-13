@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	billinghttp "mind-count/apps/api/internal/modules/billing/http"
 	"mind-count/apps/api/internal/platform/config"
 	"mind-count/apps/api/internal/transport/http/httperr"
 	"mind-count/apps/api/internal/transport/http/middleware"
@@ -17,6 +18,10 @@ import (
 
 // Pinger is the readiness handler's narrow database dependency.
 type Pinger interface{ Ping(context.Context) error }
+type apiHandler struct {
+	*healthHandler
+	*billinghttp.Handler
+}
 type healthHandler struct {
 	database Pinger
 	timeout  time.Duration
@@ -40,7 +45,11 @@ func writeHealth(w http.ResponseWriter) {
 }
 
 // NewRouter registers generated contract routes and transport policies in one place.
-func NewRouter(cfg config.Config, log *slog.Logger, database Pinger) http.Handler {
+func NewRouter(cfg config.Config, log *slog.Logger, database Pinger, billingHandlers ...*billinghttp.Handler) http.Handler {
+	var billingHandler *billinghttp.Handler
+	if len(billingHandlers) > 0 {
+		billingHandler = billingHandlers[0]
+	}
 	router := chi.NewRouter()
 	router.Use(middleware.RequestID, middleware.Logger(log), middleware.Recover(log), middleware.CORS(cfg.CORSAllowedOrigins), middleware.RateLimit(cfg.RateLimitRPS, cfg.RateLimitBurst, cfg.RateLimitMaxClients))
 	router.NotFound(func(w http.ResponseWriter, r *http.Request) {
@@ -49,5 +58,5 @@ func NewRouter(cfg config.Config, log *slog.Logger, database Pinger) http.Handle
 	router.MethodNotAllowed(func(w http.ResponseWriter, r *http.Request) {
 		httperr.Write(w, r, &httperr.Error{Status: 405, Code: "method_not_allowed", Message: "Method not allowed"})
 	})
-	return openapi.HandlerFromMux(&healthHandler{database: database, timeout: cfg.ReadinessTimeout}, router)
+	return openapi.HandlerFromMux(&apiHandler{healthHandler: &healthHandler{database: database, timeout: cfg.ReadinessTimeout}, Handler: billingHandler}, router)
 }

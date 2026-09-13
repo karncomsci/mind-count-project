@@ -12,6 +12,7 @@ export function useBillingEditor(recordId?: string) {
   const errors = ref<Record<string, string>>({})
   const saveError = ref('')
   const baseline = ref('')
+  const version = ref(0)
   const dirty = computed(() => ready.value && JSON.stringify(draft.value) !== baseline.value)
   const number = computed(
     () =>
@@ -22,12 +23,14 @@ export function useBillingEditor(recordId?: string) {
       ),
   )
   const totals = computed(() => calculateTotals(draft.value))
-  onMounted(() => {
-    store.hydrate()
+  onMounted(async () => {
+    await store.hydrate()
     if (recordId && !store.warning) {
-      const record = store.state.records.find((item) => item.id === recordId)
-      if (record) draft.value = billingDraftSchema.parse(record.draft)
-      else missing.value = true
+      const record = store.state.records.find((item) => item.id === recordId && !item.deletedAt)
+      if (record) {
+        draft.value = billingDraftSchema.parse(record.draft)
+        version.value = record.version
+      } else missing.value = true
     }
     baseline.value = JSON.stringify(draft.value)
     ready.value = true
@@ -42,16 +45,20 @@ export function useBillingEditor(recordId?: string) {
     }
     return parsed.data
   }
-  function save() {
+  async function save() {
     const parsed = validate()
     if (!parsed) return null
+    const submitted = JSON.stringify(draft.value)
     try {
-      const record = store.save(parsed, recordId)
-      baseline.value = JSON.stringify(draft.value)
+      const record = await store.save(parsed, recordId, version.value)
+      version.value = record.version
+      baseline.value = submitted
       return record
-    } catch {
+    } catch (cause) {
       saveError.value =
-        'บันทึกไม่สำเร็จ กรุณาตรวจสอบพื้นที่จัดเก็บและสิทธิ์ของเบราว์เซอร์ หรือลดขนาดไฟล์แนบแล้วลองอีกครั้ง'
+        cause instanceof Error
+          ? cause.message
+          : 'บันทึกไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง'
       return null
     }
   }

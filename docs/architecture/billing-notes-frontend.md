@@ -1,33 +1,51 @@
-# Billing notes frontend
+# Billing notes and sales document lists
 
-The billing feature implements the supplied document-editor and project/warehouse-dialog references using the existing Nuxt/Vue document patterns. It is a browser-local demonstration, not an API-backed billing or approval subsystem.
+Billing documents, projects and warehouses now persist through the Nuxt same-origin BFF, Go billing service and PostgreSQL. Quotations retain their existing browser storage. The other five sales document menus have the shared empty list/table; their editors and persistence workflows are not implemented by this change.
 
-## Routes and modules
+## Shared UI
 
-- `/sales/billing-notes`: search and open saved documents.
-- `/sales/billing-notes/new`: create a document.
-- `/sales/billing-notes/:id`: edit a saved document; unknown IDs display a not-found state.
-- `apps/web/app/features/billing-notes/components`: list/editor, catalog selection, project/warehouse dialogs, attachment controls.
-- `composables/useBillingEditor.ts`: draft lifecycle, validation, computed totals, and save/leave behavior.
-- `model.ts`: validated document/catalog/attachment shapes and independent BL numbering.
-- `stores/billing-notes.ts` and `services/storage.ts`: persist documents and catalogs in a single validated snapshot under `mind-count:billing-notes:demo:v1`.
+`components/sales/SalesDocumentTable.vue` renders nine columns for all seven sales menus: selection, date, document number, customer/project, due date, VAT-inclusive total, currency, status and actions. Feature wrappers supply document-specific status and action menus. Existing quotation PDF, print, share, duplicate and deletion actions remain available.
 
-Quotation fields, integer-satang calculations, and output primitives are reused through the public `quotations` entry points, `quotations/model.ts`, and `quotations/documents.ts`. No generated contract, Go module, or database migration changes are needed. Optional print/PDF titles and signature spaces preserve the quotation defaults. The billing item table displays the pre-VAT line amount for exclusive pricing, plus the withholding amount.
+`SalesListSearch.vue` provides query, status and date filters, including custom ranges and fiscal-year start selection. Quotation and billing lists sort the matching data before pagination and display up to 250 records. Billing additionally filters ordinary/consolidated documents, exports Excel-compatible UTF-8 CSV, prints selected documents and supports soft deletion/restoration. Creating consolidated documents is not part of this change.
 
-## Persistence and interaction
+Billing statuses are **draft / waiting / billed / cancelled**, displayed as **ร่าง / รอวางบิล / วางบิลแล้ว / ยกเลิก**. New and legacy records default to draft. Status changes do not create invoices or receipts.
 
-Read local storage only after mount. Validate complete snapshots on read/write, persist before publishing state, and reread the latest snapshot before saving to retain documents created by another tab. Storage errors remain visible; unreadable snapshots are not silently replaced. Simultaneous edits to the same document are not a collaborative editing feature.
+`useDocumentLeave` and `DocumentLeaveDialog` protect both existing document editors on route leave/update. Cancel, close X and Escape retain the form. Discard leaves without saving. Save-and-close awaits persistence and retains the draft on validation, connectivity or version-conflict failures. Browser refresh/tab close use the browser's native confirmation because an application dialog cannot block browser shutdown.
 
-Required project names and warehouse names/purposes are validated; optional warehouse postal codes and emails are validated when supplied. Project names and warehouse names/codes are checked for duplicates. Catalog saves immediately select the new entry. Cancel/Escape dismiss without saving, and the shared native dialog restores focus to its opener.
+## Contract and persistence
 
-PNG/JPG/PDF attachments are stored as validated data URLs, with three files maximum, 1 MiB per file, and 1.5 MiB combined. Storage quota failures leave the unsaved draft visible. Attachments are for local reference and are not automatically included in outgoing documents. Signature checkboxes control blank signing/stamp spaces, not electronic signature capture or verification.
+- Contract: `contracts/openapi/openapi.yaml`; regenerate Go/TypeScript/sqlc via `make generate`.
+- `GET /api/v1/billing`: workspace documents and catalogs, including recoverable deleted records.
+- `POST /api/v1/billing`: one `save`, `status`, `delete`, `restore`, `project`, `warehouse` or `import` command. Editing an existing document requires its last-read version; stale commands return HTTP 409.
+- Nuxt `server/api/v1/billing.ts` is a bounded, fixed-upstream proxy, with no mutation retries or business logic. It rejects cross-origin browser writes and bodies exceeding 4 MiB.
+- Go `modules/billing`: domain types/validation, service and repository interface, plus separate `http` and `postgres` adapters. Transport DTOs map domain values; sqlc models never leave the adapter.
+- Goose migration `20260913150000_billing_documents.sql` adds independent JSONB rows for documents and catalog entries, plus unique indexes for document numbers, catalog names and warehouse codes.
+- Commands use `TxManager.WithinTx` and an advisory transaction lock. Number allocation includes imported numbers and soft-deleted documents. The lock is appropriate for the current single development workspace; tenant-scoped locking, authentication and server-side list pagination remain future work.
+- The backend validates date/credit relationships, line amounts/discount limits, status, catalog fields and attachment byte lengths. Totals remain derived by the shared integer-satang calculation code; clients cannot submit a stored payable/total override.
 
-Print/PDF output excludes internal notes. Share provides a copyable customer-facing summary rather than a local document URL that another browser cannot open. No production deployment or cross-device synchronization is implied.
+This is the existing single-workspace development application. Authentication and tenant isolation are not yet implemented; this change does not deploy a public production service.
 
-## Validation
+## Existing browser data
 
-Unit coverage: reference totals, date-based BL numbering, document/catalog validation, attachment URLs, storage isolation/corruption/quota failures, duplicate catalogs, and billing/quotation PDF title separation.
+The list shows **นำเข้าข้อมูลเดิม** when `mind-count:billing-notes:demo:v1` exists. Import sends catalogs and records through the API. Record IDs are preserved and retries do not overwrite an already imported document. Catalog name/code or document-number collisions are reported rather than overwritten. A partial import can be retried.
 
-Browser coverage: create project/warehouse, save/edit/reload, line and summary totals, real PDF download, attachments, share/print boundaries, mobile layout, keyboard cancellation/focus, unreadable storage, and missing IDs. Run the quotation browser tests as regression coverage for the shared components.
+Only after every command succeeds does the browser copy the original payload to `mind-count:billing-notes:demo:v1:backup` and remove the active legacy key. If reading, importing or making the backup fails, the original remains available. Corrupt browser data does not overwrite PostgreSQL.
 
-Plan: [billing-notes.md](../../_bmad-output/implementation-artifacts/billing-notes.md). Runtime screenshots, PDF output, and check results are kept under `_wrx-output/evidence/billing-notes/`.
+PNG/JPG/PDF attachments retain their limits: three files, 1 MiB each and 1.5 MiB combined. They now persist inside the document payload in PostgreSQL. They are not automatically added to print/PDF outputs. Internal notes stay out of public PDF/print/share output. The signature option renders signing spaces, without signature capture or verification.
+
+## Run and verify
+
+With the project's local `.env` configured (ignored by Git):
+
+```sh
+docker compose build api web
+docker compose run --rm api /app/migrate up
+docker compose up -d --wait
+make test
+make test-integration
+pnpm test:e2e
+```
+
+Integration tests run against a disposable PostgreSQL 18 container and cover migrations, concurrent numbering, durable reads, attachments, version conflicts, catalog uniqueness, import and deletion/restoration. Browser tests use isolated API fixtures for UI interactions; `billing-backend.spec.ts` traverses the real BFF/API/database and verifies persistence in a second browser context and stale save-and-close behavior. It soft-deletes its uniquely named test document afterwards; test catalog entries remain distinguishable by their `E2E-` names.
+
+Plan and verification: `_bmad-output/implementation-artifacts/billing-notes-table.md`. Runtime evidence: `_wrx-output/evidence/billing-notes-table/`.

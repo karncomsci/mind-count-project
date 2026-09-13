@@ -38,6 +38,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/billing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read billing documents, projects and warehouses */
+        get: operations["getBilling"];
+        put?: never;
+        /** Apply one atomic billing command. Editing requires the version last read; stale writes return 409. Import preserves local IDs and is idempotent. */
+        post: operations["mutateBilling"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -57,6 +75,111 @@ export interface components {
             };
             /** Format: uuid */
             requestId: string;
+        };
+        BillingCustomer: {
+            name: string;
+            address: string;
+            postalCode: string;
+            taxId: string;
+            branch: string;
+        };
+        BillingLine: {
+            id: string;
+            description: string;
+            /** Format: double */
+            quantity: number;
+            unit: string;
+            /** Format: double */
+            unitPrice: number;
+            /** Format: double */
+            discountPercent: number;
+            /** Format: double */
+            vatRate: number;
+            /** Format: double */
+            withholdingRate: number;
+        };
+        BillingAttachment: {
+            id: string;
+            name: string;
+            /** @enum {string} */
+            type: "image/png" | "image/jpeg" | "application/pdf";
+            size: number;
+            dataUrl: string;
+        };
+        BillingDraft: {
+            customer: components["schemas"]["BillingCustomer"];
+            date: string;
+            creditDays: number;
+            /** @enum {string} */
+            creditMode: "days" | "cash" | "undated";
+            dueDate: string;
+            salesperson: string;
+            project: string;
+            reference: string;
+            description: string;
+            warehouse: string;
+            /** @enum {string} */
+            priceMode: "exclusive" | "inclusive";
+            items: components["schemas"]["BillingLine"][];
+            /** Format: double */
+            documentDiscount: number;
+            note: string;
+            internalNote: string;
+            signatureEnabled: boolean;
+            attachments: components["schemas"]["BillingAttachment"][];
+        };
+        BillingProject: {
+            id: string;
+            name: string;
+            customer: string;
+        };
+        BillingWarehouse: {
+            id: string;
+            name: string;
+            code: string;
+            address: string;
+            postalCode: string;
+            /** @enum {string} */
+            purpose: "ซื้อและขาย" | "ซื้อสินค้า" | "ขายสินค้า";
+            contact: string;
+            email: string;
+            phone: string;
+        };
+        /** @enum {string} */
+        BillingStatus: "draft" | "waiting" | "billed" | "cancelled";
+        BillingRecord: {
+            id: string;
+            number: string;
+            updatedAt: string;
+            /** Format: int64 */
+            version: number;
+            status: components["schemas"]["BillingStatus"];
+            /** @enum {string} */
+            kind: "billing" | "consolidated";
+            deletedAt: string | null;
+            draft: components["schemas"]["BillingDraft"];
+        };
+        BillingWorkspace: {
+            records: components["schemas"]["BillingRecord"][];
+            projects: components["schemas"]["BillingProject"][];
+            warehouses: components["schemas"]["BillingWarehouse"][];
+        };
+        BillingCommand: {
+            /** @enum {string} */
+            operation: "save" | "status" | "delete" | "restore" | "project" | "warehouse" | "import";
+            id?: string;
+            /** Format: int64 */
+            version?: number;
+            draft?: components["schemas"]["BillingDraft"];
+            status?: components["schemas"]["BillingStatus"];
+            project?: components["schemas"]["BillingProject"];
+            warehouse?: components["schemas"]["BillingWarehouse"];
+            record?: components["schemas"]["BillingRecord"];
+        };
+        BillingResult: {
+            record?: components["schemas"]["BillingRecord"];
+            project?: components["schemas"]["BillingProject"];
+            warehouse?: components["schemas"]["BillingWarehouse"];
         };
     };
     responses: {
@@ -115,6 +238,54 @@ export interface operations {
         responses: {
             200: components["responses"]["HealthResult"];
             503: components["responses"]["Failure"];
+            default: components["responses"]["Failure"];
+        };
+    };
+    getBilling: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingWorkspace"];
+                };
+            };
+            default: components["responses"]["Failure"];
+        };
+    };
+    mutateBilling: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BillingCommand"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingResult"];
+                };
+            };
             default: components["responses"]["Failure"];
         };
     };

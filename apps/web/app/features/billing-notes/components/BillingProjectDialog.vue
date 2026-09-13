@@ -9,13 +9,15 @@ const props = defineProps<{ customer: string }>()
 const emit = defineEmits<{ close: []; saved: [name: string] }>()
 const store = useBillingNotesStore()
 const formId = useId()
+const busy = ref(false)
 const name = ref('')
 const customer = ref(props.customer)
 const error = ref('')
 const customers = computed(() => [
   ...new Set([props.customer, ...sampleCustomers.map((item) => item.name)].filter(Boolean)),
 ])
-function save() {
+async function save() {
+  if (busy.value) return
   const parsed = projectSchema.safeParse({
     id: crypto.randomUUID(),
     name: name.value,
@@ -25,24 +27,25 @@ function save() {
     error.value = parsed.error.issues[0]!.message
     return
   }
+  busy.value = true
   try {
-    emit('saved', store.addProject(parsed.data).name)
+    emit('saved', (await store.addProject(parsed.data)).name)
   } catch (cause) {
-    error.value =
-      cause instanceof Error && cause.message === 'มีชื่อโปรเจ็คนี้แล้ว'
-        ? cause.message
-        : 'บันทึกโปรเจ็คไม่สำเร็จ กรุณาตรวจสอบพื้นที่จัดเก็บของเบราว์เซอร์'
+    error.value = cause instanceof Error ? cause.message : 'บันทึกไม่สำเร็จ กรุณาลองใหม่'
+  } finally {
+    busy.value = false
   }
 }
 </script>
 
 <template>
   <Teleport to="body">
-    <AppDialog title="สร้างโปรเจ็ค" class="billing-dialog" @close="emit('close')">
+    <AppDialog title="สร้างโปรเจ็ค" class="billing-dialog" @close="!busy && emit('close')">
       <button
         type="button"
         class="billing-dialog-close"
         aria-label="ปิดหน้าต่างสร้างโปรเจ็ค"
+        :disabled="busy"
         @click="emit('close')"
       >
         <AppIcon name="close" />
@@ -66,8 +69,12 @@ function save() {
         <p v-if="error" role="alert" class="field-error">{{ error }}</p>
       </form>
       <template #actions>
-        <button type="button" class="button button-white" @click="emit('close')">ยกเลิก</button>
-        <button type="submit" :form="formId" class="button button-green">บันทึก</button>
+        <button type="button" class="button button-white" :disabled="busy" @click="emit('close')">
+          ยกเลิก
+        </button>
+        <button type="submit" :disabled="busy" :form="formId" class="button button-green">
+          บันทึก
+        </button>
       </template>
     </AppDialog>
   </Teleport>

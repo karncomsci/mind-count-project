@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { createDraft, quotationSchema, type QuotationDraft } from '../quotations/model'
+import { billingStatuses } from './services/status'
 
 export const projectSchema = z.object({
   id: z.string().min(1),
@@ -58,6 +59,10 @@ export const billingRecordSchema = z.object({
   id: z.string().min(1),
   number: z.string().regex(/^BL\d{12,}$/),
   updatedAt: z.string(),
+  version: z.number().int().nonnegative().default(0),
+  status: z.enum(billingStatuses).default('draft'),
+  kind: z.enum(['billing', 'consolidated']).default('billing'),
+  deletedAt: z.iso.datetime().nullable().default(null),
   draft: billingDraftSchema,
 })
 export type BillingRecord = z.infer<typeof billingRecordSchema>

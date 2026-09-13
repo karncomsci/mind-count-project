@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { onBeforeRouteLeave } from 'vue-router'
+import DocumentLeaveDialog from '~/components/base/DocumentLeaveDialog.vue'
+import { useDocumentLeave } from '~/composables/useDocumentLeave'
 import AppIcon from '~/components/base/AppIcon.vue'
 import QuotationCustomerSection from './QuotationCustomerSection.vue'
 import QuotationDocumentSection from './QuotationDocumentSection.vue'
@@ -27,6 +28,14 @@ const {
 } = useQuotationEditor(props.recordId)
 const errorSummary = ref<HTMLElement | null>(null)
 const saving = ref(false)
+const { leaveOpen, leaveBusy, cancelLeave, discardAndLeave, saveAndLeave } = useDocumentLeave(
+  dirty,
+  () => !!save(),
+  async () => {
+    await nextTick()
+    errorSummary.value?.focus()
+  },
+)
 function patch(value: Partial<QuotationDraft>) {
   draft.value = { ...draft.value, ...value }
 }
@@ -41,17 +50,6 @@ async function submit() {
   }
   saving.value = false
 }
-function beforeUnload(event: BeforeUnloadEvent) {
-  if (dirty.value) {
-    event.preventDefault()
-    event.returnValue = ''
-  }
-}
-onMounted(() => window.addEventListener('beforeunload', beforeUnload))
-onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
-onBeforeRouteLeave(
-  () => !dirty.value || window.confirm('มีข้อมูลที่ยังไม่ได้บันทึก ต้องการออกจากหน้านี้หรือไม่?'),
-)
 function printDocument() {
   window.print()
 }
@@ -64,6 +62,13 @@ function printDocument() {
     <NuxtLink class="button button-blue mt-5" to="/sales/quotations">กลับไปรายการ</NuxtLink>
   </section>
   <template v-else>
+    <DocumentLeaveDialog
+      v-if="leaveOpen"
+      :busy="leaveBusy || saving"
+      @cancel="cancelLeave"
+      @discard="discardAndLeave"
+      @save="saveAndLeave"
+    />
     <form
       class="quotation-editor screen-document"
       :inert="!ready"
