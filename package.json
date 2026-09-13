@@ -1,0 +1,20 @@
+{
+  "name": "mind-count",
+  "private": true,
+  "packageManager": "pnpm@10.34.5",
+  "engines": { "node": ">=24 <25", "pnpm": ">=10 <11" },
+  "scripts": {
+    "dev": "pnpm --filter @mind-count/web dev",
+    "lint": "pnpm --filter @mind-count/web lint",
+    "typecheck": "pnpm --filter @mind-count/web typecheck",
+    "test": "pnpm --filter @mind-count/web test",
+    "build": "pnpm --filter @mind-count/web build",
+    "generate:ts": "openapi-typescript contracts/openapi/openapi.yaml -o apps/web/app/lib/api/generated/schema.ts",
+    "test:e2e": "playwright test",
+    "check:generated": "node scripts/check-generated.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0",
+    "openapi-typescript": "^7.9.1"
+  }
+}

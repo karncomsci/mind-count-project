@@ -1,0 +1,41 @@
+version: '2'
+run:
+  timeout: 5m
+  relative-path-mode: gomod
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - staticcheck
+    - revive
+    - bodyclose
+    - sqlclosecheck
+    - contextcheck
+    - noctx
+    - depguard
+  settings:
+    depguard:
+      rules:
+        domain:
+          files:
+            - '**/internal/modules/*/*.go'
+            - '!$test'
+          deny:
+            - pkg: net/http
+              desc: Domain and service code must not depend on HTTP.
+            - pkg: github.com/go-chi/chi
+              desc: Chi belongs in HTTP adapters only.
+            - pkg: github.com/jackc/pgx
+              desc: pgx belongs in PostgreSQL adapters only.
+            - pkg: mind-count/apps/api/internal/transport
+              desc: Domain must not depend on transport DTOs or errors.
+            - pkg: mind-count/apps/api/internal/db
+              desc: Domain must not depend on sqlc models.
+            - pkg: mind-count/apps/api/internal/platform/database
+              desc: Declare a consumer-side transaction interface in the module.
+  exclusions:
+    generated: strict
+formatters:
+  enable:
+    - gofmt

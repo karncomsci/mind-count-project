@@ -1,0 +1,12 @@
+.git
+**/node_modules
+**/.nuxt
+**/.output
+**/coverage
+.env
+.env.*
+_wrx-output
+_bmad-output
+Instruction
+playwright-report
+test-results
