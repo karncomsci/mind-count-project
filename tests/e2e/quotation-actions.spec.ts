@@ -84,5 +84,8 @@ test('all seven sales menus open and highlight their own page', async ({ page })
     await menu.getByRole('link', { name: label, exact: true }).click()
     await expect(page.getByRole('heading', { name: label, exact: true })).toBeVisible()
     await expect(menu.getByRole('link', { name: label, exact: true })).toHaveAttribute('aria-current', 'page')
+    await expect(page.getByRole('columnheader')).toHaveCount(9)
+    await expect(page.getByRole('columnheader', { name: 'วันครบกำหนด', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: `เปิดค้นหา${label}`, exact: true })).toBeVisible()
   }
 })

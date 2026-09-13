@@ -3,3 +3,9 @@
 //   sqlc v1.30.0
 
 package gen
+
+type BillingEntity struct {
+	Kind string
+	ID   string
+	Body []byte
+}

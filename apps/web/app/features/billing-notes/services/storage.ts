@@ -2,10 +2,10 @@ import { z } from 'zod'
 import { billingRecordSchema, projectSchema, warehouseSchema } from '../model'
 
 export const BILLING_STORAGE_KEY = 'mind-count:billing-notes:demo:v1'
-const stateSchema = z.object({
-  records: z.array(billingRecordSchema).max(1000),
-  projects: z.array(projectSchema).max(1000),
-  warehouses: z.array(warehouseSchema).max(1000),
+export const stateSchema = z.object({
+  records: z.array(billingRecordSchema),
+  projects: z.array(projectSchema),
+  warehouses: z.array(warehouseSchema),
 })
 export type BillingState = z.infer<typeof stateSchema>
 export function initialBillingState(): BillingState {

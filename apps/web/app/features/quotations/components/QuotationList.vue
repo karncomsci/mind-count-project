@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import type { SalesFilters } from '~/components/sales/search'
+import { quotationStatuses } from '../services/status'
+import type { SalesSort } from '~/components/sales/table'
+import { sortQuotations } from '../services/list'
 import AppIcon from '~/components/base/AppIcon.vue'
 import QuotationListToolbar from './QuotationListToolbar.vue'
 import QuotationTable from './QuotationTable.vue'
@@ -27,9 +31,19 @@ const {
 } = useQuotationActions()
 const route = useRoute()
 const query = ref('')
+const filters = ref<SalesFilters>({})
+watch(filters, (value) => {
+  query.value = value.query ?? ''
+  status.value = quotationStatuses.find((item) => item === value.status) ?? 'all'
+})
 const status = ref<QuotationStatus | 'all'>('all')
 const selected = ref<string[]>([])
 const ascending = ref(false)
+const sort = ref<SalesSort>('date')
+function changeSort(key: SalesSort) {
+  ascending.value = sort.value === key ? !ascending.value : true
+  sort.value = key
+}
 const page = ref(1)
 const pageSize = 6
 const ready = ref(false)
@@ -38,21 +52,21 @@ onMounted(() => {
   ready.value = true
 })
 const filtered = computed(() =>
-  store.records
-    .filter((record) => {
+  sortQuotations(
+    store.records.filter((record) => {
       const search = query.value.trim().toLocaleLowerCase('th')
       return (
         (status.value === 'all' || record.status === status.value) &&
-        `${record.number} ${record.draft.customer.name} ${record.draft.project}`
+        (!filters.value.start || record.draft.date >= filters.value.start) &&
+        (!filters.value.end || record.draft.date <= filters.value.end) &&
+        `${record.number} ${record.draft.customer.name} ${record.draft.project} ${record.draft.description} ${record.draft.items.map((item) => item.description).join(' ')}`
           .toLocaleLowerCase('th')
           .includes(search)
       )
-    })
-    .toSorted(
-      (a, b) =>
-        (ascending.value ? 1 : -1) *
-        (a.draft.date.localeCompare(b.draft.date) || a.updatedAt.localeCompare(b.updatedAt)),
-    ),
+    }),
+    sort.value,
+    ascending.value,
+  ).slice(0, 250),
 )
 const pageCount = computed(() => Math.max(1, Math.ceil(filtered.value.length / pageSize)))
 const selectedRecords = computed(() =>
@@ -67,7 +81,7 @@ watch(filtered, (records) => {
 const paged = computed(() =>
   filtered.value.slice((page.value - 1) * pageSize, page.value * pageSize),
 )
-watch([query, status, ascending], () => {
+watch([query, status, ascending, sort, filters], () => {
   page.value = 1
   selected.value = []
 })
@@ -104,8 +118,9 @@ function exportCsv() {
     <p v-if="store.storageWarning" role="alert" class="warning-notice">
       {{ store.storageWarning }}
     </p>
-    <div class="list-card">
+    <div class="list-card billing-list-card">
       <QuotationListToolbar
+        v-model:filters="filters"
         v-model:query="query"
         v-model:status="status"
         :count="store.records.length"
@@ -121,10 +136,11 @@ function exportCsv() {
         v-model:selected="selected"
         :records="paged"
         :ascending="ascending"
+        :sort="sort"
         :busy="busy"
         @status="changeStatus"
         @action="action"
-        @sort="ascending = !ascending"
+        @sort="changeSort"
       />
       <div class="table-pagination">
         <p>

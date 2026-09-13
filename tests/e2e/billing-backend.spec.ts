@@ -1,0 +1,58 @@
+import { expect, test } from '@playwright/test'
+
+// Real Nuxt BFF -> Go -> PostgreSQL. Every created record uses a unique test name and is soft-deleted afterwards.
+test('billing persists across browser contexts and rejects stale save-and-close', async ({ page, browser, baseURL }) => {
+  const name = `E2E-${crypto.randomUUID()}`
+  await page.goto('/sales/billing-notes/new')
+  await expect(page.getByRole('button', { name: 'บันทึกเอกสาร', exact: true })).toBeEnabled()
+  await page.getByLabel('ชื่อลูกค้า', { exact: false }).fill(name)
+  await page.getByLabel('ชื่อสินค้า รายการที่ 1', { exact: true }).fill('คอม')
+  await page.getByLabel('ราคาต่อหน่วย รายการที่ 1', { exact: true }).fill('20000')
+  await page.getByRole('button', { name: 'เลือกโปรเจ็ค', exact: true }).click()
+  await page.getByRole('button', { name: 'เพิ่มโปรเจ็ค', exact: true }).click()
+  await page.getByRole('dialog').getByLabel('ชื่อโปรเจ็ค', { exact: false }).fill(name)
+  await page.getByRole('dialog').getByRole('button', { name: 'บันทึก', exact: true }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await page.getByRole('button', { name: 'เลือกคลังสินค้า', exact: true }).click()
+  await page.getByRole('button', { name: 'เพิ่มคลังสินค้า', exact: true }).click()
+  await page.getByRole('dialog').getByLabel('ชื่อคลังสินค้า', { exact: false }).fill(name)
+  await page.getByRole('dialog').getByLabel('จุดประสงค์การใช้งาน', { exact: false }).selectOption('ซื้อและขาย')
+  await page.getByRole('dialog').getByRole('button', { name: 'บันทึก', exact: true }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await page.getByRole('link', { name: 'ปิดหน้าต่าง', exact: true }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'บันทึกและปิด', exact: true }).click()
+  await expect(page).toHaveURL(/\/sales\/billing-notes$/)
+  const row = page.locator('tbody tr').filter({ hasText: name })
+  await expect(row).toHaveCount(1)
+  await expect(row).toContainText('ร่าง')
+  const href = await row.locator('.document-link').getAttribute('href')
+  const other = await browser.newContext({ baseURL })
+  const otherPage = await other.newPage()
+  try {
+    await otherPage.goto(href!)
+    await expect(otherPage.getByLabel('ชื่อลูกค้า', { exact: false })).toHaveValue(name)
+    await expect(otherPage.getByRole('button', { name: 'เลือกโปรเจ็ค', exact: true })).toContainText(name)
+    await expect(otherPage.getByRole('button', { name: 'เลือกคลังสินค้า', exact: true })).toContainText(name)
+    await expect(otherPage.getByTestId('document-total')).toHaveText('21,400.00')
+    expect(await otherPage.evaluate(() => localStorage.getItem('mind-count:billing-notes:demo:v1'))).toBeNull()
+    await row.getByRole('button', { name: /^เปลี่ยนสถานะ/ }).click()
+    await page.getByRole('button', { name: 'รอวางบิล', exact: true }).click()
+    await expect(row).toContainText('รอวางบิล')
+    await otherPage.getByLabel('โน้ตภายในบริษัท').fill('รักษาข้อมูลที่ยังบันทึกไม่ได้')
+    await otherPage.getByRole('link', { name: 'ปิดหน้าต่าง', exact: true }).click()
+    await otherPage.getByRole('dialog').getByRole('button', { name: 'บันทึกและปิด', exact: true }).click()
+    await expect(otherPage.getByRole('alert')).toContainText('ข้อมูลมีการเปลี่ยนแปลงจากหน้าต่างอื่น')
+    await expect(otherPage.getByLabel('โน้ตภายในบริษัท')).toHaveValue('รักษาข้อมูลที่ยังบันทึกไม่ได้')
+    await expect(otherPage).toHaveURL(new RegExp(`${href}$`))
+    await otherPage.screenshot({ path: '_wrx-output/evidence/billing-notes-table/backend-conflict.png', fullPage: true })
+  } finally {
+    await other.close()
+    const response = await page.request.get('/api/v1/billing')
+    const workspace = await response.json()
+    const record = workspace.records.find((item: { id: string }) => item.id === href!.split('/').pop())
+    if (record) {
+      const removed = await page.request.post('/api/v1/billing', { data: { operation: 'delete', id: record.id, version: record.version } })
+      expect(removed.ok()).toBe(true)
+    }
+  }
+})

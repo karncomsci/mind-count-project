@@ -11,6 +11,162 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
+// Defines values for BillingAttachmentType.
+const (
+	Applicationpdf BillingAttachmentType = "application/pdf"
+	Imagejpeg      BillingAttachmentType = "image/jpeg"
+	Imagepng       BillingAttachmentType = "image/png"
+)
+
+// Valid indicates whether the value is a known member of the BillingAttachmentType enum.
+func (e BillingAttachmentType) Valid() bool {
+	switch e {
+	case Applicationpdf:
+		return true
+	case Imagejpeg:
+		return true
+	case Imagepng:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for BillingCommandOperation.
+const (
+	Delete    BillingCommandOperation = "delete"
+	Import    BillingCommandOperation = "import"
+	Project   BillingCommandOperation = "project"
+	Restore   BillingCommandOperation = "restore"
+	Save      BillingCommandOperation = "save"
+	Status    BillingCommandOperation = "status"
+	Warehouse BillingCommandOperation = "warehouse"
+)
+
+// Valid indicates whether the value is a known member of the BillingCommandOperation enum.
+func (e BillingCommandOperation) Valid() bool {
+	switch e {
+	case Delete:
+		return true
+	case Import:
+		return true
+	case Project:
+		return true
+	case Restore:
+		return true
+	case Save:
+		return true
+	case Status:
+		return true
+	case Warehouse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for BillingDraftCreditMode.
+const (
+	Cash    BillingDraftCreditMode = "cash"
+	Days    BillingDraftCreditMode = "days"
+	Undated BillingDraftCreditMode = "undated"
+)
+
+// Valid indicates whether the value is a known member of the BillingDraftCreditMode enum.
+func (e BillingDraftCreditMode) Valid() bool {
+	switch e {
+	case Cash:
+		return true
+	case Days:
+		return true
+	case Undated:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for BillingDraftPriceMode.
+const (
+	Exclusive BillingDraftPriceMode = "exclusive"
+	Inclusive BillingDraftPriceMode = "inclusive"
+)
+
+// Valid indicates whether the value is a known member of the BillingDraftPriceMode enum.
+func (e BillingDraftPriceMode) Valid() bool {
+	switch e {
+	case Exclusive:
+		return true
+	case Inclusive:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for BillingRecordKind.
+const (
+	Billing      BillingRecordKind = "billing"
+	Consolidated BillingRecordKind = "consolidated"
+)
+
+// Valid indicates whether the value is a known member of the BillingRecordKind enum.
+func (e BillingRecordKind) Valid() bool {
+	switch e {
+	case Billing:
+		return true
+	case Consolidated:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for BillingStatus.
+const (
+	Billed    BillingStatus = "billed"
+	Cancelled BillingStatus = "cancelled"
+	Draft     BillingStatus = "draft"
+	Waiting   BillingStatus = "waiting"
+)
+
+// Valid indicates whether the value is a known member of the BillingStatus enum.
+func (e BillingStatus) Valid() bool {
+	switch e {
+	case Billed:
+		return true
+	case Cancelled:
+		return true
+	case Draft:
+		return true
+	case Waiting:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for BillingWarehousePurpose.
+const (
+	Empty BillingWarehousePurpose = "ซื้อและขาย"
+	N1    BillingWarehousePurpose = "ซื้อสินค้า"
+	N2    BillingWarehousePurpose = "ขายสินค้า"
+)
+
+// Valid indicates whether the value is a known member of the BillingWarehousePurpose enum.
+func (e BillingWarehousePurpose) Valid() bool {
+	switch e {
+	case Empty:
+		return true
+	case N1:
+		return true
+	case N2:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for HealthStatus.
 const (
 	Ok HealthStatus = "ok"
@@ -24,6 +180,136 @@ func (e HealthStatus) Valid() bool {
 	default:
 		return false
 	}
+}
+
+// BillingAttachment defines model for BillingAttachment.
+type BillingAttachment struct {
+	DataUrl string                `json:"dataUrl"`
+	Id      string                `json:"id"`
+	Name    string                `json:"name"`
+	Size    int                   `json:"size"`
+	Type    BillingAttachmentType `json:"type"`
+}
+
+// BillingAttachmentType defines model for BillingAttachment.Type.
+type BillingAttachmentType string
+
+// BillingCommand defines model for BillingCommand.
+type BillingCommand struct {
+	Draft     *BillingDraft           `json:"draft,omitempty"`
+	Id        *string                 `json:"id,omitempty"`
+	Operation BillingCommandOperation `json:"operation"`
+	Project   *BillingProject         `json:"project,omitempty"`
+	Record    *BillingRecord          `json:"record,omitempty"`
+	Status    *BillingStatus          `json:"status,omitempty"`
+	Version   *int64                  `json:"version,omitempty"`
+	Warehouse *BillingWarehouse       `json:"warehouse,omitempty"`
+}
+
+// BillingCommandOperation defines model for BillingCommand.Operation.
+type BillingCommandOperation string
+
+// BillingCustomer defines model for BillingCustomer.
+type BillingCustomer struct {
+	Address    string `json:"address"`
+	Branch     string `json:"branch"`
+	Name       string `json:"name"`
+	PostalCode string `json:"postalCode"`
+	TaxId      string `json:"taxId"`
+}
+
+// BillingDraft defines model for BillingDraft.
+type BillingDraft struct {
+	Attachments      []BillingAttachment    `json:"attachments"`
+	CreditDays       int                    `json:"creditDays"`
+	CreditMode       BillingDraftCreditMode `json:"creditMode"`
+	Customer         BillingCustomer        `json:"customer"`
+	Date             string                 `json:"date"`
+	Description      string                 `json:"description"`
+	DocumentDiscount float64                `json:"documentDiscount"`
+	DueDate          string                 `json:"dueDate"`
+	InternalNote     string                 `json:"internalNote"`
+	Items            []BillingLine          `json:"items"`
+	Note             string                 `json:"note"`
+	PriceMode        BillingDraftPriceMode  `json:"priceMode"`
+	Project          string                 `json:"project"`
+	Reference        string                 `json:"reference"`
+	Salesperson      string                 `json:"salesperson"`
+	SignatureEnabled bool                   `json:"signatureEnabled"`
+	Warehouse        string                 `json:"warehouse"`
+}
+
+// BillingDraftCreditMode defines model for BillingDraft.CreditMode.
+type BillingDraftCreditMode string
+
+// BillingDraftPriceMode defines model for BillingDraft.PriceMode.
+type BillingDraftPriceMode string
+
+// BillingLine defines model for BillingLine.
+type BillingLine struct {
+	Description     string  `json:"description"`
+	DiscountPercent float64 `json:"discountPercent"`
+	Id              string  `json:"id"`
+	Quantity        float64 `json:"quantity"`
+	Unit            string  `json:"unit"`
+	UnitPrice       float64 `json:"unitPrice"`
+	VatRate         float64 `json:"vatRate"`
+	WithholdingRate float64 `json:"withholdingRate"`
+}
+
+// BillingProject defines model for BillingProject.
+type BillingProject struct {
+	Customer string `json:"customer"`
+	Id       string `json:"id"`
+	Name     string `json:"name"`
+}
+
+// BillingRecord defines model for BillingRecord.
+type BillingRecord struct {
+	DeletedAt *string           `json:"deletedAt"`
+	Draft     BillingDraft      `json:"draft"`
+	Id        string            `json:"id"`
+	Kind      BillingRecordKind `json:"kind"`
+	Number    string            `json:"number"`
+	Status    BillingStatus     `json:"status"`
+	UpdatedAt string            `json:"updatedAt"`
+	Version   int64             `json:"version"`
+}
+
+// BillingRecordKind defines model for BillingRecord.Kind.
+type BillingRecordKind string
+
+// BillingResult defines model for BillingResult.
+type BillingResult struct {
+	Project   *BillingProject   `json:"project,omitempty"`
+	Record    *BillingRecord    `json:"record,omitempty"`
+	Warehouse *BillingWarehouse `json:"warehouse,omitempty"`
+}
+
+// BillingStatus defines model for BillingStatus.
+type BillingStatus string
+
+// BillingWarehouse defines model for BillingWarehouse.
+type BillingWarehouse struct {
+	Address    string                  `json:"address"`
+	Code       string                  `json:"code"`
+	Contact    string                  `json:"contact"`
+	Email      string                  `json:"email"`
+	Id         string                  `json:"id"`
+	Name       string                  `json:"name"`
+	Phone      string                  `json:"phone"`
+	PostalCode string                  `json:"postalCode"`
+	Purpose    BillingWarehousePurpose `json:"purpose"`
+}
+
+// BillingWarehousePurpose defines model for BillingWarehouse.Purpose.
+type BillingWarehousePurpose string
+
+// BillingWorkspace defines model for BillingWorkspace.
+type BillingWorkspace struct {
+	Projects   []BillingProject   `json:"projects"`
+	Records    []BillingRecord    `json:"records"`
+	Warehouses []BillingWarehouse `json:"warehouses"`
 }
 
 // Error defines model for Error.
@@ -53,8 +339,17 @@ type Failure = ErrorResponse
 // HealthResult defines model for HealthResult.
 type HealthResult = Health
 
+// MutateBillingJSONRequestBody defines body for MutateBilling for application/json ContentType.
+type MutateBillingJSONRequestBody = BillingCommand
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// GetBilling Read billing documents, projects and warehouses
+	// (GET /api/v1/billing)
+	GetBilling(w http.ResponseWriter, r *http.Request)
+	// MutateBilling Apply one atomic billing command. Editing requires the version last read; stale writes return 409. Import preserves local IDs and is idempotent.
+	// (POST /api/v1/billing)
+	MutateBilling(w http.ResponseWriter, r *http.Request)
 	// GetLiveness Check whether the HTTP process is alive
 	// (GET /health/live)
 	GetLiveness(w http.ResponseWriter, r *http.Request)
@@ -66,6 +361,18 @@ type ServerInterface interface {
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
 
 type Unimplemented struct{}
+
+// GetBilling Read billing documents, projects and warehouses
+// (GET /api/v1/billing)
+func (_ Unimplemented) GetBilling(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// MutateBilling Apply one atomic billing command. Editing requires the version last read; stale writes return 409. Import preserves local IDs and is idempotent.
+// (POST /api/v1/billing)
+func (_ Unimplemented) MutateBilling(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
 
 // GetLiveness Check whether the HTTP process is alive
 // (GET /health/live)
@@ -87,6 +394,34 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// GetBilling operation middleware
+func (siw *ServerInterfaceWrapper) GetBilling(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetBilling(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// MutateBilling operation middleware
+func (siw *ServerInterfaceWrapper) MutateBilling(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.MutateBilling(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
 
 // GetLiveness operation middleware
 func (siw *ServerInterfaceWrapper) GetLiveness(w http.ResponseWriter, r *http.Request) {
@@ -234,6 +569,12 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/health/ready", wrapper.GetReadiness)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/api/v1/billing", wrapper.GetBilling)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/api/v1/billing", wrapper.MutateBilling)
 	})
 
 	return r

@@ -7,6 +7,7 @@ import { useBillingNotesStore } from '../stores/billing-notes'
 const emit = defineEmits<{ close: []; saved: [name: string] }>()
 const store = useBillingNotesStore()
 const formId = useId()
+const busy = ref(false)
 const fields = reactive({
   name: '',
   code: '',
@@ -19,7 +20,8 @@ const fields = reactive({
 })
 const errors = ref<Record<string, string>>({})
 const saveError = ref('')
-function save() {
+async function save() {
+  if (busy.value) return
   errors.value = {}
   saveError.value = ''
   const parsed = warehouseSchema.safeParse({ id: crypto.randomUUID(), ...fields })
@@ -27,13 +29,13 @@ function save() {
     for (const issue of parsed.error.issues) errors.value[issue.path.join('.')] ??= issue.message
     return
   }
+  busy.value = true
   try {
-    emit('saved', store.addWarehouse(parsed.data).name)
+    emit('saved', (await store.addWarehouse(parsed.data)).name)
   } catch (cause) {
-    saveError.value =
-      cause instanceof Error && cause.message === 'ชื่อหรือรหัสคลังสินค้านี้มีอยู่แล้ว'
-        ? cause.message
-        : 'บันทึกคลังสินค้าไม่สำเร็จ กรุณาตรวจสอบพื้นที่จัดเก็บของเบราว์เซอร์'
+    saveError.value = cause instanceof Error ? cause.message : 'บันทึกไม่สำเร็จ กรุณาลองใหม่'
+  } finally {
+    busy.value = false
   }
 }
 </script>
@@ -43,12 +45,13 @@ function save() {
     <AppDialog
       title="สร้างคลังสินค้า"
       class="billing-dialog billing-warehouse-dialog"
-      @close="emit('close')"
+      @close="!busy && emit('close')"
     >
       <button
         type="button"
         class="billing-dialog-close"
         aria-label="ปิดหน้าต่างสร้างคลังสินค้า"
+        :disabled="busy"
         @click="emit('close')"
       >
         <AppIcon name="close" />
@@ -87,8 +90,12 @@ function save() {
         <p v-if="saveError" role="alert" class="field-error">{{ saveError }}</p>
       </form>
       <template #actions>
-        <button type="button" class="button button-white" @click="emit('close')">ยกเลิก</button>
-        <button type="submit" :form="formId" class="button button-green">บันทึก</button>
+        <button type="button" class="button button-white" :disabled="busy" @click="emit('close')">
+          ยกเลิก
+        </button>
+        <button type="submit" :disabled="busy" :form="formId" class="button button-green">
+          บันทึก
+        </button>
       </template>
     </AppDialog>
   </Teleport>

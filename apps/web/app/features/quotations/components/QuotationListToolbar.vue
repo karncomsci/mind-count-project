@@ -1,7 +1,11 @@
 <script setup lang="ts">
+import SalesListSearch from '~/components/sales/SalesListSearch.vue'
+import type { SalesFilters } from '~/components/sales/search'
 import AppIcon from '~/components/base/AppIcon.vue'
 import type { QuotationStatus } from '../types'
 import { quotationStatuses, statusLabels } from '../services/status'
+const filters = defineModel<SalesFilters>('filters', { required: true })
+const statuses = quotationStatuses.map((id) => ({ id, label: statusLabels[id] }))
 const query = defineModel<string>('query', { required: true })
 const status = defineModel<QuotationStatus | 'all'>('status', { required: true })
 defineProps<{ count: number; selectedCount: number; busy?: boolean }>()
@@ -9,7 +13,7 @@ defineEmits<{ export: []; clear: []; download: []; print: []; envelope: [] }>()
 </script>
 
 <template>
-  <div class="list-toolbar">
+  <div class="list-toolbar billing-list-toolbar">
     <div class="flex flex-wrap items-center gap-3">
       <span v-if="selectedCount" class="selection-pill">
         เลือก {{ selectedCount }} รายการ
@@ -61,14 +65,17 @@ defineEmits<{ export: []; clear: []; download: []; print: []; envelope: [] }>()
         ส่งออก{{ selectedCount ? ` (${selectedCount})` : '' }}
       </button>
     </div>
-    <div class="search-input">
-      <AppIcon name="search" class="h-4 w-4 text-slate-400" />
-      <input
-        v-model="query"
-        type="search"
-        aria-label="ค้นหาใบเสนอราคา"
-        placeholder="ค้นหาเลขที่เอกสาร หรือชื่อลูกค้า"
-      />
+    <div class="flex items-center gap-3">
+      <SalesListSearch v-model="filters" title="ใบเสนอราคา" :statuses="statuses" />
+      <div class="search-input">
+        <AppIcon name="search" class="h-4 w-4 text-slate-400" />
+        <input
+          v-model="query"
+          type="search"
+          aria-label="ค้นหาใบเสนอราคา"
+          placeholder="ค้นหาเลขที่เอกสาร หรือชื่อลูกค้า"
+        />
+      </div>
     </div>
   </div>
 </template>

@@ -160,6 +160,7 @@ func TestInfrastructure(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 	})
+	t.Run("billing persistence", func(t *testing.T) { testBilling(t, ctx, pool, tx) })
 	t.Run("real database readiness", func(t *testing.T) {
 		router := bootstrap.NewRouter(config.Config{ReadinessTimeout: time.Second, RateLimitRPS: 10, RateLimitBurst: 20, RateLimitMaxClients: 100}, slog.New(slog.NewJSONHandler(io.Discard, nil)), pool)
 		w := httptest.NewRecorder()
